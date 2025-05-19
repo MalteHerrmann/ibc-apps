@@ -44,6 +44,8 @@ func NewIBCMiddleware(
 	retriesOnTimeout uint8,
 	forwardTimeout time.Duration,
 ) IBCMiddleware {
+	panic("right here in pfm")
+	fmt.Println("creating new pfm middleware")
 	return IBCMiddleware{
 		app:              app,
 		keeper:           k,
