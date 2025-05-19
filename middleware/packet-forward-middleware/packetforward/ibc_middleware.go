@@ -44,7 +44,6 @@ func NewIBCMiddleware(
 	retriesOnTimeout uint8,
 	forwardTimeout time.Duration,
 ) IBCMiddleware {
-	panic("right here in pfm")
 	fmt.Println("creating new pfm middleware")
 	return IBCMiddleware{
 		app:              app,
@@ -168,8 +167,11 @@ func (im IBCMiddleware) OnRecvPacket(
 ) ibcexported.Acknowledgement {
 	logger := im.keeper.Logger(ctx)
 
+	fmt.Println("on recv packet in pfm")
+
 	var data transfertypes.FungibleTokenPacketData
 	if err := transfertypes.ModuleCdc.UnmarshalJSON(packet.GetData(), &data); err != nil {
+		fmt.Println("failed to unpack packet data")
 		logger.Debug(fmt.Sprintf("packetForwardMiddleware OnRecvPacket payload is not a FungibleTokenPacketData: %s", err.Error()))
 		return im.app.OnRecvPacket(ctx, packet, relayer)
 	}
@@ -186,16 +188,19 @@ func (im IBCMiddleware) OnRecvPacket(
 	if err != nil || d["forward"] == nil {
 		// not a packet that should be forwarded
 		logger.Debug("packetForwardMiddleware OnRecvPacket forward metadata does not exist")
+		fmt.Println("packetForwardMiddleware OnRecvPacket forward metadata does not exist")
 		return im.app.OnRecvPacket(ctx, packet, relayer)
 	}
 	m := &types.PacketMetadata{}
 	err = json.Unmarshal([]byte(data.Memo), m)
 	if err != nil {
 		logger.Error("packetForwardMiddleware OnRecvPacket error parsing forward metadata", "error", err)
+		fmt.Println("packetForwardMiddleware OnRecvPacket error parsing forward metadata", "error", err)
 		return newErrorAcknowledgement(fmt.Errorf("error parsing forward metadata: %w", err))
 	}
 
 	metadata := m.Forward
+	fmt.Println("got metadata", metadata)
 
 	goCtx := ctx.Context()
 	nonrefundable := getBoolFromAny(goCtx.Value(types.NonrefundableKey{}))
@@ -203,6 +208,7 @@ func (im IBCMiddleware) OnRecvPacket(
 
 	if err := metadata.Validate(); err != nil {
 		logger.Error("packetForwardMiddleware OnRecvPacket forward metadata is invalid", "error", err)
+		fmt.Println("packetForwardMiddleware OnRecvPacket forward metadata is invalid", "error", err)
 		return newErrorAcknowledgement(err)
 	}
 
@@ -210,11 +216,13 @@ func (im IBCMiddleware) OnRecvPacket(
 	overrideReceiver, err := GetReceiver(packet.DestinationChannel, data.Sender)
 	if err != nil {
 		logger.Error("packetForwardMiddleware OnRecvPacket failed to construct override receiver", "error", err)
+		fmt.Println("packetForwardMiddleware OnRecvPacket failed to construct override receiver", "error", err)
 		return newErrorAcknowledgement(fmt.Errorf("failed to construct override receiver: %w", err))
 	}
 
 	if err := im.receiveFunds(ctx, packet, data, overrideReceiver, relayer); err != nil {
 		logger.Error("packetForwardMiddleware OnRecvPacket error receiving packet", "error", err)
+		fmt.Println("packetForwardMiddleware OnRecvPacket error receiving packet", "error", err)
 		return newErrorAcknowledgement(fmt.Errorf("error receiving packet: %w", err))
 	}
 
@@ -229,9 +237,12 @@ func (im IBCMiddleware) OnRecvPacket(
 		)
 	}
 
+	fmt.Println("got denom for this chain:", denomOnThisChain)
+
 	amountInt, ok := sdkmath.NewIntFromString(data.Amount)
 	if !ok {
 		logger.Error("packetForwardMiddleware OnRecvPacket error parsing amount for forward", "amount", data.Amount)
+		fmt.Println("packetForwardMiddleware OnRecvPacket error parsing amount for forward", "amount", data.Amount)
 		return newErrorAcknowledgement(fmt.Errorf("error parsing amount for forward: %s", data.Amount))
 	}
 
@@ -253,8 +264,11 @@ func (im IBCMiddleware) OnRecvPacket(
 	err = im.keeper.ForwardTransferPacket(ctx, nil, packet, data.Sender, overrideReceiver, metadata, token, retries, timeout, []metrics.Label{}, nonrefundable)
 	if err != nil {
 		logger.Error("packetForwardMiddleware OnRecvPacket error forwarding packet", "error", err)
+		fmt.Println("packetForwardMiddleware OnRecvPacket error forwarding packet", "error", err)
 		return newErrorAcknowledgement(err)
 	}
+
+	fmt.Println("returning nil from pfm onrecvpacket")
 
 	// returning nil ack will prevent WriteAcknowledgement from occurring for forwarded packet.
 	// This is intentional so that the acknowledgement will be written later based on the ack/timeout of the forwarded packet.
