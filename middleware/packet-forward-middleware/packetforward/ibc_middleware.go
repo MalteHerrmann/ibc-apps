@@ -165,6 +165,7 @@ func (im IBCMiddleware) OnRecvPacket(
 	relayer sdk.AccAddress,
 ) ibcexported.Acknowledgement {
 	logger := im.keeper.Logger(ctx)
+	defer panic("failing here after pfm on recv")
 
 	fmt.Println("on recv packet in pfm")
 
