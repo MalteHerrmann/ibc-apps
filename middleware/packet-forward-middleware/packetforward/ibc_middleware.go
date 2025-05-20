@@ -119,6 +119,7 @@ func getDenomForThisChain(port, channel, counterpartyPort, counterpartyChannel, 
 	}
 	// append port and channel from this chain to denom
 	prefixedDenom := transfertypes.GetDenomPrefix(port, channel) + denom
+	fmt.Println("got prefixed denom: ", prefixedDenom)
 	return transfertypes.ParseDenomTrace(prefixedDenom).IBCDenom()
 }
 
